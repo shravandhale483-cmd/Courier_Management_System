@@ -312,9 +312,7 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-    </style>
-    """, unsafe_allow_html=True)
-
+   
     if not st.session_state.get("authenticated", False):
         login_screen()
         return
