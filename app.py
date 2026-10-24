@@ -593,8 +593,8 @@ def admin_dashboard():
 
 def main():
     init_db()
-
-st.markdown("""
+    
+    st.markdown("""
 <style>
 /* ===== SwiftShip Modern UI ===== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -858,6 +858,7 @@ hr {
 }
 </style>
 """, unsafe_allow_html=True)
+
 
   
     user = st.session_state.get("user")
