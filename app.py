@@ -1,338 +1,674 @@
-import os
-import sqlite3
-import hashlib
-import hmac
-import secrets
-import pandas as pd
+
 import streamlit as st
+import sqlite3
+import pandas as pd
+import hashlib
+import secrets
+import hmac
+from datetime import datetime, date
+import re
 
 st.set_page_config(
-    page_title="CustomerHub | Customer Management",
-    page_icon="👥",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    page_title="SwiftShip Courier System",
+    page_icon="📦",
+    layout="wide"
 )
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "customers.db")
-STATUSES = ["Active", "Inactive", "Lead"]
+DB = "courier.db"
+
+STATUSES = [
+    "Booking Confirmed",
+    "Pickup Scheduled",
+    "Picked Up",
+    "In Transit",
+    "Arrived at Hub",
+    "Out for Delivery",
+    "Delivered",
+    "Delivery Failed",
+    "Returned to Sender"
+]
 
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+# ---------------- DATABASE ----------------
+
+def connect():
+    con = sqlite3.connect(DB, timeout=30)
+    con.row_factory = sqlite3.Row
+    con.execute("PRAGMA foreign_keys = ON")
+    return con
 
 
-def hash_password(password, salt=None):
-    salt = salt or secrets.token_hex(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 200_000).hex()
-    return f"{salt}${digest}"
+def hash_password(password):
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode(), salt.encode(), 200000
+    ).hex()
+    return salt + "$" + digest
 
 
 def verify_password(password, stored):
     try:
-        salt, expected = stored.split("$", 1)
-        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 200_000).hex()
-        return hmac.compare_digest(actual, expected)
+        salt, digest = stored.split("$", 1)
+        actual = hashlib.pbkdf2_hmac(
+            "sha256", password.encode(), salt.encode(), 200000
+        ).hex()
+        return hmac.compare_digest(actual, digest)
     except (ValueError, AttributeError):
         return False
 
 
 def init_db():
-    with get_db() as db:
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL
-            )
+    with connect() as con:
+        con.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            phone TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'customer'
+        );
+
+        CREATE TABLE IF NOT EXISTS shipments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tracking_no TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            sender_name TEXT NOT NULL,
+            sender_phone TEXT NOT NULL,
+            sender_address TEXT NOT NULL,
+            sender_city TEXT NOT NULL,
+            receiver_name TEXT NOT NULL,
+            receiver_phone TEXT NOT NULL,
+            receiver_address TEXT NOT NULL,
+            receiver_city TEXT NOT NULL,
+            parcel_type TEXT NOT NULL,
+            weight REAL NOT NULL,
+            amount REAL NOT NULL,
+            payment_mode TEXT NOT NULL,
+            status TEXT NOT NULL,
+            expected_delivery TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS tracking_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shipment_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            location TEXT DEFAULT '',
+            note TEXT DEFAULT '',
+            event_time TEXT NOT NULL,
+            FOREIGN KEY(shipment_id)
+                REFERENCES shipments(id) ON DELETE CASCADE
+        );
         """)
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS customers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL UNIQUE,
-                phone TEXT NOT NULL,
-                company TEXT DEFAULT '',
-                address TEXT DEFAULT '',
-                status TEXT NOT NULL DEFAULT 'Active'
-                    CHECK(status IN ('Active','Inactive','Lead')),
-                notes TEXT DEFAULT '',
-                created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+
+        # Demo admin account
+        admin = con.execute(
+            "SELECT id FROM users WHERE email = ?",
+            ("admin@swiftship.demo",)
+        ).fetchone()
+
+        if not admin:
+            con.execute("""
+                INSERT INTO users
+                (name, email, phone, password_hash, role)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                "Administrator",
+                "admin@swiftship.demo",
+                "9999999999",
+                hash_password("Admin@123"),
+                "admin"
+            ))
+
+
+def read_df(sql, params=()):
+    with connect() as con:
+        return pd.read_sql_query(sql, con, params=params)
+
+
+def add_event(shipment_id, status, location, note):
+    with connect() as con:
+        con.execute("""
+            INSERT INTO tracking_events
+            (shipment_id, status, location, note, event_time)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            shipment_id, status, location, note,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
+
+
+# ---------------- UTILITIES ----------------
+
+def make_tracking_number():
+    return "SS" + datetime.now().strftime("%y%m%d") + secrets.token_hex(4).upper()
+
+
+def estimate_price(weight, parcel, distance):
+    base_prices = {
+        "Document": 50,
+        "Small Parcel": 80,
+        "Medium Parcel": 130,
+        "Large Parcel": 200
+    }
+
+    distance_prices = {
+        "Same City": 0,
+        "Within State": 50,
+        "National": 100
+    }
+
+    return round(
+        base_prices[parcel]
+        + max(0, weight - 0.5) * 25
+        + distance_prices[distance],
+        2
+    )
+
+
+def record_event(shipment_id, status, location, note):
+    # Keep current shipment status and its history consistent.
+    with connect() as con:
+        con.execute(
+            "UPDATE shipments SET status = ? WHERE id = ?",
+            (status, shipment_id)
+        )
+        con.execute("""
+            INSERT INTO tracking_events
+            (shipment_id, status, location, note, event_time)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            shipment_id, status, location.strip(), note.strip(),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
+
+
+# ---------------- LOGIN / REGISTER ----------------
+
+def authentication_page():
+    st.title("📦 SwiftShip")
+    st.subheader("Courier Booking & Tracking System")
+    st.write("Book parcels online and track their delivery progress.")
+
+    login_tab, register_tab = st.tabs(
+        ["Sign In", "Create Customer Account"]
+    )
+
+    with login_tab:
+        with st.form("login_form"):
+            email = st.text_input("Email")
+            password = st.text_input("Password", type="password")
+            login = st.form_submit_button(
+                "Sign In", type="primary"
             )
-        """)
-        if db.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
-            db.execute(
-                "INSERT INTO users(username,password_hash) VALUES (?,?)",
-                ("admin", hash_password("Admin@123")),
+
+        if login:
+            users = read_df(
+                "SELECT * FROM users WHERE lower(email)=lower(?)",
+                (email.strip(),)
             )
 
-
-def query_df(sql, params=()):
-    with get_db() as db:
-        return pd.read_sql_query(sql, db, params=params)
-
-
-def add_customer(values):
-    with get_db() as db:
-        db.execute("""INSERT INTO customers
-            (name,email,phone,company,address,status,notes)
-            VALUES (?,?,?,?,?,?,?)""", values)
-
-
-def update_customer(customer_id, values):
-    with get_db() as db:
-        db.execute("""UPDATE customers SET name=?,email=?,phone=?,company=?,
-            address=?,status=?,notes=? WHERE id=?""", (*values, customer_id))
-
-
-def login_screen():
-    st.markdown("<div class='hero'><div class='eyebrow'>CUSTOMER RELATIONSHIP WORKSPACE</div><h1>CustomerHub</h1><p>One simple place to organize every customer relationship.</p></div>", unsafe_allow_html=True)
-    left, center, right = st.columns([1, 1.15, 1])
-    with center:
-        with st.container(border=True):
-            st.subheader("🔐 Admin sign in")
-            with st.form("login_form"):
-                username = st.text_input("Username", placeholder="Enter username")
-                password = st.text_input("Password", type="password", placeholder="Enter password")
-                submitted = st.form_submit_button("Sign in", type="primary", use_container_width=True)
-            if submitted:
-                user = query_df("SELECT * FROM users WHERE username = ?", (username.strip(),))
-                if not user.empty and verify_password(password, user.iloc[0]["password_hash"]):
-                    st.session_state["authenticated"] = True
-                    st.session_state["username"] = username.strip()
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password.")
-            st.caption("Demo credentials: `admin` / `Admin@123`")
-            st.warning("Change the demo password and add production-grade security before using real customer data.")
-
-
-def customer_form(default=None, key_prefix="add"):
-    default = default or {}
-    with st.form(f"{key_prefix}_customer_form"):
-        c1, c2 = st.columns(2)
-        with c1:
-            name = st.text_input("Full name *", value=str(default.get("name", "")))
-            email = st.text_input("Email address *", value=str(default.get("email", "")))
-            phone = st.text_input("Phone number *", value=str(default.get("phone", "")))
-            company = st.text_input("Company", value=str(default.get("company", "")))
-        with c2:
-            current_status = str(default.get("status", "Active"))
-            status = st.selectbox("Status", STATUSES, index=STATUSES.index(current_status) if current_status in STATUSES else 0)
-            address = st.text_input("Address", value=str(default.get("address", "")))
-            notes = st.text_area("Notes", value=str(default.get("notes", "")), height=110)
-        submitted = st.form_submit_button("Save customer", type="primary", use_container_width=True)
-    if submitted:
-        name, email, phone = name.strip(), email.strip().lower(), phone.strip()
-        if not name or not email or not phone:
-            st.error("Name, email, and phone are required.")
-        elif "@" not in email or "." not in email.split("@")[-1]:
-            st.error("Please enter a valid email address.")
-        else:
-            return (name, email, phone, company.strip(), address.strip(), status, notes.strip())
-    return None
-
-
-def dashboard():
-    st.markdown("<div class='eyebrow'>OVERVIEW</div><h1>Customer dashboard</h1><p class='subhead'>A clear snapshot of your customer database.</p>", unsafe_allow_html=True)
-    data = query_df("SELECT * FROM customers")
-    total = len(data)
-    active = int((data["status"] == "Active").sum()) if total else 0
-    leads = int((data["status"] == "Lead").sum()) if total else 0
-    inactive = int((data["status"] == "Inactive").sum()) if total else 0
-    cols = st.columns(4)
-    for col, label, value, icon in zip(cols, ["Total customers", "Active", "Potential leads", "Inactive"], [total, active, leads, inactive], ["👥", "✅", "🌱", "⏸️"]):
-        with col:
-            st.metric(f"{icon} {label}", value)
-    st.write("")
-    left, right = st.columns([1.35, 1])
-    with left:
-        with st.container(border=True):
-            st.subheader("🕒 Recently added")
-            recent = query_df("SELECT name,email,company,status,created_at FROM customers ORDER BY id DESC LIMIT 5")
-            if recent.empty:
-                st.info("No customer records yet. Open **Add customer** from the sidebar to create your first record.")
-            else:
-                st.dataframe(recent, use_container_width=True, hide_index=True)
-    with right:
-        with st.container(border=True):
-            st.subheader("📊 Customer status")
-            if total:
-                counts = data["status"].value_counts().reindex(STATUSES, fill_value=0)
-                st.bar_chart(counts)
-            else:
-                st.caption("Status chart appears after customers are added.")
-            st.caption("Use the Customers page to search, filter, edit, delete, or export records.")
-
-
-def customers_page():
-    st.title("👥 Customers")
-    st.caption("Search and manage your customer records.")
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        search = st.text_input("Search", placeholder="Search by name, email, phone or company", label_visibility="collapsed")
-    with c2:
-        status_filter = st.selectbox("Status", ["All statuses"] + STATUSES, label_visibility="collapsed")
-    sql = "SELECT id,name,email,phone,company,status,created_at FROM customers WHERE 1=1"
-    params = []
-    if search.strip():
-        term = f"%{search.strip()}%"
-        sql += " AND (name LIKE ? OR email LIKE ? OR phone LIKE ? OR company LIKE ?)"
-        params.extend([term, term, term, term])
-    if status_filter != "All statuses":
-        sql += " AND status=?"
-        params.append(status_filter)
-    sql += " ORDER BY id DESC"
-    rows = query_df(sql, tuple(params))
-    st.caption(f"{len(rows)} record(s) found")
-    st.dataframe(rows, use_container_width=True, hide_index=True)
-    if not rows.empty:
-        csv_data = rows.to_csv(index=False).encode("utf-8")
-        st.download_button("⬇️ Export displayed records to CSV", csv_data, "customers.csv", "text/csv")
-    st.divider()
-    st.subheader("Edit or delete a customer")
-    all_customers = query_df("SELECT * FROM customers ORDER BY id DESC")
-    if all_customers.empty:
-        st.info("Add a customer first to enable editing and deletion.")
-        return
-    labels = {f"#{int(row['id'])} · {row['name']} ({row['email']})": int(row["id"]) for _, row in all_customers.iterrows()}
-    selected_label = st.selectbox("Select customer", list(labels.keys()))
-    customer_id = labels[selected_label]
-    record = all_customers[all_customers["id"] == customer_id].iloc[0].to_dict()
-    with st.expander("✏️ Edit selected customer"):
-        values = customer_form(record, key_prefix=f"edit_{customer_id}")
-        if values:
-            try:
-                update_customer(customer_id, values)
-                st.success("Customer updated successfully.")
+            if (
+                not users.empty
+                and verify_password(
+                    password, users.iloc[0]["password_hash"]
+                )
+            ):
+                u = users.iloc[0]
+                st.session_state["user"] = {
+                    "id": int(u["id"]),
+                    "name": u["name"],
+                    "email": u["email"],
+                    "role": u["role"]
+                }
                 st.rerun()
-            except sqlite3.IntegrityError:
-                st.error("That email address is already used by another customer.")
-    with st.expander("🗑️ Delete selected customer"):
-        st.warning(f"This will permanently delete {record['name']}'s record.")
-        confirm = st.checkbox("I confirm that I want to delete this customer.", key=f"confirm_delete_{customer_id}")
-        if st.button("Delete customer", type="primary", disabled=not confirm, key=f"delete_{customer_id}"):
-            with get_db() as db:
-                db.execute("DELETE FROM customers WHERE id=?", (customer_id,))
-            st.success("Customer deleted.")
-            st.rerun()
+            else:
+                st.error("Invalid email or password.")
+
+    with register_tab:
+        with st.form("register_form"):
+            name = st.text_input("Full Name")
+            new_email = st.text_input("Email Address")
+            phone = st.text_input("Phone Number")
+            p1 = st.text_input("Create Password", type="password")
+            p2 = st.text_input("Confirm Password", type="password")
+            register = st.form_submit_button(
+                "Create Account", type="primary"
+            )
+
+        if register:
+            if not all([
+                name.strip(), new_email.strip(),
+                phone.strip(), p1, p2
+            ]):
+                st.error("Please fill in all fields.")
+            elif not re.fullmatch(
+                r"[^@\s]+@[^@\s]+\.[^@\s]+",
+                new_email.strip()
+            ):
+                st.error("Enter a valid email address.")
+            elif len(p1) < 8:
+                st.error("Password must have at least 8 characters.")
+            elif p1 != p2:
+                st.error("Passwords do not match.")
+            else:
+                try:
+                    with connect() as con:
+                        con.execute("""
+                            INSERT INTO users
+                            (name, email, phone, password_hash, role)
+                            VALUES (?, ?, ?, ?, 'customer')
+                        """, (
+                            name.strip(),
+                            new_email.strip().lower(),
+                            phone.strip(),
+                            hash_password(p1)
+                        ))
+                    st.success("Account created. Please sign in.")
+                except sqlite3.IntegrityError:
+                    st.error("This email is already registered.")
+
+    st.caption(
+        "Demo admin: admin@swiftship.demo | Password: Admin@123"
+    )
 
 
-def add_page():
-    st.title("➕ Add customer")
-    st.caption("Create a new customer record.")
-    values = customer_form(key_prefix="new")
-    if values:
+# ---------------- CUSTOMER DASHBOARD ----------------
+
+def customer_dashboard(user):
+    st.title(f"Welcome, {user['name']} 👋")
+
+    shipments = read_df(
+        "SELECT * FROM shipments WHERE user_id=? ORDER BY id DESC",
+        (user["id"],)
+    )
+
+    a, b, c = st.columns(3)
+    a.metric("Total Bookings", len(shipments))
+    b.metric(
+        "In Progress",
+        int((~shipments["status"].isin(
+            ["Delivered", "Returned to Sender"]
+        )).sum()) if not shipments.empty else 0
+    )
+    c.metric(
+        "Delivered",
+        int((shipments["status"] == "Delivered").sum())
+        if not shipments.empty else 0
+    )
+
+    st.subheader("My Recent Shipments")
+
+    if shipments.empty:
+        st.info("No bookings yet. Select 'Send a Courier' to begin.")
+        return
+
+    view = shipments[[
+        "tracking_no", "receiver_name", "receiver_city",
+        "status", "expected_delivery", "amount"
+    ]].copy()
+
+    view.columns = [
+        "Tracking Number", "Receiver", "Destination",
+        "Status", "Expected Delivery", "Charge (INR)"
+    ]
+
+    st.dataframe(view, use_container_width=True, hide_index=True)
+
+
+# ---------------- COURIER BOOKING ----------------
+
+def booking_page(user):
+    st.title("📮 Send a Courier")
+    st.caption("Fields marked * are required.")
+
+    with st.form("booking_form"):
+        st.subheader("Sender Details")
+        c1, c2 = st.columns(2)
+
+        with c1:
+            sender_name = st.text_input(
+                "Sender Name *", value=user["name"]
+            )
+            sender_phone = st.text_input("Sender Phone *")
+            sender_city = st.text_input("Pickup City *")
+            sender_address = st.text_area("Pickup Address *")
+
+        with c2:
+            parcel = st.selectbox(
+                "Parcel Type",
+                ["Document", "Small Parcel",
+                 "Medium Parcel", "Large Parcel"]
+            )
+            weight = st.number_input(
+                "Weight (kg)", min_value=0.1,
+                max_value=100.0, value=0.5, step=0.1
+            )
+            distance = st.selectbox(
+                "Delivery Distance",
+                ["Same City", "Within State", "National"]
+            )
+            payment = st.selectbox(
+                "Payment Mode",
+                ["Pay at Booking (Demo)",
+                 "Cash on Delivery (Record Only)"]
+            )
+
+        st.subheader("Receiver Details")
+        c1, c2 = st.columns(2)
+
+        with c1:
+            receiver_name = st.text_input("Receiver Name *")
+            receiver_phone = st.text_input("Receiver Phone *")
+            receiver_city = st.text_input("Destination City *")
+
+        with c2:
+            receiver_address = st.text_area("Delivery Address *")
+            expected = st.date_input(
+                "Expected Delivery Date",
+                value=date.today(),
+                min_value=date.today()
+            )
+
+        charge = estimate_price(weight, parcel, distance)
+        st.info(
+            f"Estimated courier charge: ₹{charge:.2f}. "
+            "This is a demo estimate, not a real carrier quote."
+        )
+
+        submit = st.form_submit_button(
+            "Confirm Booking", type="primary",
+            use_container_width=True
+        )
+
+    if submit:
+        required = [
+            sender_name, sender_phone, sender_city, sender_address,
+            receiver_name, receiver_phone, receiver_city,
+            receiver_address
+        ]
+
+        if not all(x.strip() for x in required):
+            st.error("Please complete all required fields.")
+            return
+
+        tracking = make_tracking_number()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         try:
-            add_customer(values)
-            st.success("Customer added successfully.")
-            st.rerun()
-        except sqlite3.IntegrityError:
-            st.error("A customer with this email already exists.")
+            with connect() as con:
+                cur = con.execute("""
+                    INSERT INTO shipments (
+                        tracking_no, user_id,
+                        sender_name, sender_phone,
+                        sender_address, sender_city,
+                        receiver_name, receiver_phone,
+                        receiver_address, receiver_city,
+                        parcel_type, weight, amount,
+                        payment_mode, status,
+                        expected_delivery, created_at
+                    )
+                    VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?, ?
+                    )
+                """, (
+                    tracking, user["id"],
+                    sender_name.strip(), sender_phone.strip(),
+                    sender_address.strip(), sender_city.strip(),
+                    receiver_name.strip(), receiver_phone.strip(),
+                    receiver_address.strip(), receiver_city.strip(),
+                    parcel, float(weight), charge,
+                    payment, "Booking Confirmed",
+                    str(expected), now
+                ))
 
+                shipment_id = cur.lastrowid
+
+            add_event(
+                shipment_id,
+                "Booking Confirmed",
+                sender_city,
+                "Booking created by customer."
+            )
+
+            st.success("Courier booked successfully!")
+            st.subheader("Your Tracking Number")
+            st.code(tracking)
+            st.warning("Save this number for future reference.")
+
+        except sqlite3.IntegrityError:
+            st.error("Booking failed. Please try again.")
+
+
+# ---------------- CUSTOMER TRACKING ----------------
+
+def tracking_page(user):
+    st.title("🔎 Track My Courier")
+
+    with st.form("tracking_form"):
+        tracking = st.text_input(
+            "Enter Tracking Number",
+            placeholder="Example: SS261024ABC12345"
+        )
+        submit = st.form_submit_button(
+            "Track Shipment", type="primary"
+        )
+
+    if submit:
+        shipment = read_df("""
+            SELECT * FROM shipments
+            WHERE upper(tracking_no)=upper(?) AND user_id=?
+        """, (tracking.strip(), user["id"]))
+
+        if shipment.empty:
+            st.error("Tracking number not found in your account.")
+            return
+
+        s = shipment.iloc[0]
+
+        st.subheader(f"Shipment: {s['tracking_no']}")
+        st.success(f"Current Status: {s['status']}")
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Origin", s["sender_city"])
+        c2.metric("Destination", s["receiver_city"])
+        c3.metric("Estimated Delivery", s["expected_delivery"])
+
+        events = read_df("""
+            SELECT status, location, note, event_time
+            FROM tracking_events
+            WHERE shipment_id=?
+            ORDER BY id DESC
+        """, (int(s["id"]),))
+
+        st.subheader("Tracking Timeline")
+
+        if events.empty:
+            st.info("No tracking updates available.")
+        else:
+            for _, event in events.iterrows():
+                st.markdown(
+                    f"**📍 {event['status']}**  \n"
+                    f"{event['event_time']}  \n"
+                    f"Location: {event['location'] or 'Not updated'}  \n"
+                    f"{event['note']}"
+                )
+                st.divider()
+
+
+# ---------------- ADMIN DASHBOARD ----------------
+
+def admin_dashboard():
+    st.title("🛠️ Admin Operations")
+
+    shipments = read_df("""
+        SELECT s.*, u.email AS customer_email
+        FROM shipments s
+        JOIN users u ON u.id=s.user_id
+        ORDER BY s.id DESC
+    """)
+
+    a, b, c = st.columns(3)
+    a.metric("Total Bookings", len(shipments))
+    b.metric(
+        "In Transit",
+        int(shipments["status"].isin([
+            "Picked Up", "In Transit",
+            "Arrived at Hub", "Out for Delivery"
+        ]).sum()) if not shipments.empty else 0
+    )
+    c.metric(
+        "Delivered",
+        int((shipments["status"] == "Delivered").sum())
+        if not shipments.empty else 0
+    )
+
+    st.subheader("All Courier Bookings")
+
+    if shipments.empty:
+        st.info("No courier bookings received yet.")
+        return
+
+    display = shipments.drop(
+        columns=["id", "user_id"], errors="ignore"
+    )
+    st.dataframe(
+        display, use_container_width=True, hide_index=True
+    )
+
+    st.download_button(
+        "Download Bookings CSV",
+        display.to_csv(index=False).encode("utf-8"),
+        "courier_bookings.csv",
+        "text/csv"
+    )
+
+    st.divider()
+    st.subheader("Update Shipment Status")
+
+    options = {
+        f"{r.tracking_no} | {r.sender_city} → {r.receiver_city}": int(r.id)
+        for r in shipments.itertuples()
+    }
+
+    selected = st.selectbox("Select Shipment", list(options.keys()))
+    shipment_id = options[selected]
+
+    with st.form("update_status_form"):
+        new_status = st.selectbox("New Status", STATUSES)
+        location = st.text_input(
+            "Current Location / Hub",
+            placeholder="Example: Nagpur Sorting Hub"
+        )
+        note = st.text_input(
+            "Update Note",
+            placeholder="Example: Parcel received at hub"
+        )
+        update = st.form_submit_button(
+            "Save Tracking Update", type="primary"
+        )
+
+    if update:
+        record_event(shipment_id, new_status, location, note)
+        st.success("Tracking update saved.")
+        st.rerun()
+
+    st.divider()
+    st.subheader("Registered Customers")
+
+    customers = read_df("""
+        SELECT id, name, email, phone, role
+        FROM users ORDER BY id DESC
+    """)
+
+    st.dataframe(
+        customers, use_container_width=True, hide_index=True
+    )
+
+
+# ---------------- MAIN APP ----------------
 
 def main():
     init_db()
-     
+
+    # Readable light theme
     st.markdown("""
     <style>
-      /* Main page: dark text on light background */
-      .stApp,
-      [data-testid="stAppViewContainer"],
-      [data-testid="stMain"] {
-          background: #f5f7fb !important;
-          color: #182338 !important;
-      }
-
-      [data-testid="stMain"] h1,
-      [data-testid="stMain"] h2,
-      [data-testid="stMain"] h3,
-      [data-testid="stMain"] p,
-      [data-testid="stMain"] label,
-      [data-testid="stMain"] span,
-      [data-testid="stMain"] div {
-          color: inherit;
-      }
-
-      [data-testid="stSidebar"] {
-          background: #17233c !important;
-      }
-
-      [data-testid="stSidebar"] * {
-          color: #f5f7ff;
-      }
-
-      .hero {
-          text-align: center;
-          padding: 3.2rem 0 1.5rem;
-      }
-
-      .hero h1 {
-          color: #182338 !important;
-          font-size: 3rem;
-          font-weight: 800;
-      }
-
-      .hero p, .subhead {
-          color: #718096 !important;
-      }
-
-      .eyebrow {
-          color: #4965df !important;
-          font-size: .75rem;
-          font-weight: 800;
-          letter-spacing: 1.8px;
-      }
-
-      [data-testid="stMetric"] {
-          background: white;
-          color: #182338 !important;
-          padding: 1.1rem;
-          border: 1px solid #e6ebf3;
-          border-radius: 14px;
-      }
-
-      [data-testid="stMetric"] label,
-      [data-testid="stMetric"] [data-testid="stMetricValue"] {
-          color: #182338 !important;
-      }
-
-      [data-testid="stVerticalBlockBorderWrapper"] {
-          background: white;
-          border-radius: 14px;
-      }
-
-      .stButton button[kind="primary"],
-      .stFormSubmitButton button[kind="primary"] {
-          background: #3659d9;
-          border-color: #3659d9;
-          color: white !important;
-      }
+    .stApp {
+        background: #f4f7fb;
+        color: #17233c;
+    }
+    [data-testid="stMain"] h1,
+    [data-testid="stMain"] h2,
+    [data-testid="stMain"] h3,
+    [data-testid="stMain"] p,
+    [data-testid="stMain"] label {
+        color: #17233c;
+    }
+    [data-testid="stSidebar"] {
+        background: #17233c;
+    }
+    [data-testid="stSidebar"] * {
+        color: #ffffff;
+    }
+    [data-testid="stMetric"] {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px;
+    }
+    [data-testid="stMetricValue"] {
+        color: #17233c;
+    }
+    .stButton button[kind="primary"],
+    .stFormSubmitButton button[kind="primary"] {
+        background: #3659d9;
+        color: white;
+        border-radius: 8px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-   
-    if not st.session_state.get("authenticated", False):
-        login_screen()
+    user = st.session_state.get("user")
+
+    if not user:
+        authentication_page()
         return
 
     with st.sidebar:
-        st.markdown("## 👥 CustomerHub")
-        st.caption(f"Signed in as **{st.session_state.get('username', 'admin')}**")
-        page = st.radio("NAVIGATION", ["Dashboard", "Customers", "Add customer"], label_visibility="visible")
-        st.divider()
-        if st.button("Log out", use_container_width=True):
-            st.session_state.clear()
-            st.rerun()
-        st.caption("Python · Streamlit · SQLite")
+        st.title("📦 SwiftShip")
+        st.caption(f"Signed in: {user['name']}")
 
-    if page == "Dashboard":
-        dashboard()
-    elif page == "Customers":
-        customers_page()
-    else:
-        add_page()
+        if user["role"] == "admin":
+            page = st.radio(
+                "MENU",
+                ["Admin Dashboard"]
+            )
+        else:
+            page = st.radio(
+                "MENU",
+                [
+                    "My Dashboard",
+                    "Send a Courier",
+                    "Track Courier"
+                ]
+            )
+
+        if st.button("Sign Out", use_container_width=True):
+            st.session_state.pop("user", None)
+            st.rerun()
+
+    if page == "Admin Dashboard":
+        admin_dashboard()
+    elif page == "My Dashboard":
+        customer_dashboard(user)
+    elif page == "Send a Courier":
+        booking_page(user)
+    elif page == "Track Courier":
+        tracking_page(user)
 
 
 if __name__ == "__main__":
