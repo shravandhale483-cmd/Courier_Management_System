@@ -629,6 +629,20 @@ def main():
         color: white;
         border-radius: 8px;
     }
+    
+    .stTextArea textarea {
+        background-color: #ffffff !important;
+        color: #222222 !important;
+        -webkit-text-fill-color: #222222 !important;
+        caret-color: #222222 !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    .stTextArea textarea::placeholder {
+        color: #64748b !important;
+        opacity: 1 !important;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
