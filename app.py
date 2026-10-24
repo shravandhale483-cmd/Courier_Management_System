@@ -277,46 +277,167 @@ def authentication_page():
 
 # ---------------- CUSTOMER DASHBOARD ----------------
 
+
+# ---------------- CUSTOMER DASHBOARD ----------------
+
 def customer_dashboard(user):
     st.title(f"Welcome, {user['name']} 👋")
+    st.caption("Your personal courier dashboard — everything you need in one place.")
 
     shipments = read_df(
         "SELECT * FROM shipments WHERE user_id=? ORDER BY id DESC",
         (user["id"],)
     )
 
-    a, b, c = st.columns(3)
-    a.metric("Total Bookings", len(shipments))
-    b.metric(
-        "In Progress",
-        int((~shipments["status"].isin(
-            ["Delivered", "Returned to Sender"]
-        )).sum()) if not shipments.empty else 0
-    )
-    c.metric(
-        "Delivered",
-        int((shipments["status"] == "Delivered").sum())
-        if not shipments.empty else 0
-    )
+    total = len(shipments)
+    delivered = int(
+        (shipments["status"] == "Delivered").sum()
+    ) if total else 0
+    returned = int(
+        (shipments["status"] == "Returned to Sender").sum()
+    ) if total else 0
+    in_progress = total - delivered - returned
 
-    st.subheader("My Recent Shipments")
+    # Dashboard metric cards
+    st.markdown("### 📊 Shipment Overview")
+    a, b, c, d = st.columns(4)
+
+    a.metric("📦 Total Bookings", total)
+    b.metric("🚚 In Progress", in_progress)
+    c.metric("✅ Delivered", delivered)
+    d.metric("↩️ Returned", returned)
+
+    st.divider()
+
+    # Quick action cards
+    st.markdown("### ⚡ Quick Overview")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("#### 📦 Manage Your Couriers")
+        st.write("Create a shipment booking and arrange delivery.")
+        st.info("Use **Send a Courier** in the sidebar to book a parcel.")
+
+    with col2:
+        st.markdown("#### 🔎 Track Your Shipment")
+        st.write("Check your parcel's latest tracking status.")
+        st.info("Use **Track Courier** in the sidebar to track a parcel.")
+
+    st.divider()
+
+    # Shipment analytics
+    chart_col, overview_col = st.columns([1.2, 1])
+
+    with chart_col:
+        st.markdown("### 📈 Shipment Analytics")
+
+        if shipments.empty:
+            st.info("Your chart will appear after your first booking.")
+        else:
+            status_counts = (
+                shipments["status"]
+                .fillna("Unknown")
+                .value_counts()
+                .rename_axis("Status")
+                .reset_index(name="Shipments")
+            )
+
+            st.bar_chart(
+                status_counts.set_index("Status"),
+                height=300
+            )
+
+    with overview_col:
+        st.markdown("### 🎯 Delivery Progress")
+
+        if total == 0:
+            st.write("You haven't booked any couriers yet.")
+            st.progress(0.0)
+        else:
+            st.metric(
+                "Delivery Success",
+                f"{(delivered / total) * 100:.1f}%"
+            )
+            st.progress(delivered / total)
+            st.caption(f"{delivered} out of {total} shipments delivered.")
+
+            if in_progress > 0:
+                st.warning(f"{in_progress} shipment(s) are still in progress.")
+            elif delivered == total:
+                st.success("All your shipments have been delivered!")
+
+    st.divider()
+
+    # Recent shipment table
+    st.markdown("### 📋 My Recent Shipments")
 
     if shipments.empty:
-        st.info("No bookings yet. Select 'Send a Courier' to begin.")
+        st.info(
+            "No bookings yet. Select **Send a Courier** "
+            "from the sidebar to get started."
+        )
         return
 
-    view = shipments[[
-        "tracking_no", "receiver_name", "receiver_city",
-        "status", "expected_delivery", "amount"
-    ]].copy()
+    filter_col, search_col = st.columns([1, 2])
+
+    with filter_col:
+        statuses = ["All Statuses"] + sorted(
+            shipments["status"].dropna().astype(str).unique().tolist()
+        )
+        selected_status = st.selectbox(
+            "Filter by status",
+            statuses,
+            key="dashboard_status_filter"
+        )
+
+    with search_col:
+        search_text = st.text_input(
+            "Search shipments",
+            placeholder="Tracking number, receiver or destination...",
+            key="dashboard_search"
+        )
+
+    view = shipments[
+        [
+            "tracking_no",
+            "receiver_name",
+            "receiver_city",
+            "status",
+            "expected_delivery",
+            "amount"
+        ]
+    ].copy()
 
     view.columns = [
-        "Tracking Number", "Receiver", "Destination",
-        "Status", "Expected Delivery", "Charge (INR)"
+        "Tracking Number",
+        "Receiver",
+        "Destination",
+        "Status",
+        "Expected Delivery",
+        "Charge (INR)"
     ]
 
-    st.dataframe(view, use_container_width=True, hide_index=True)
+    if selected_status != "All Statuses":
+        view = view[view["Status"].astype(str) == selected_status]
 
+    if search_text.strip():
+        term = search_text.strip().lower()
+        mask = view.astype(str).apply(
+            lambda col: col.str.lower().str.contains(term, regex=False)
+        ).any(axis=1)
+        view = view[mask]
+
+    st.dataframe(
+        view,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.caption(f"Showing {len(view)} shipment(s).")
+
+
+# ---------------- COURIER BOOKING ----------------
 
 # ---------------- COURIER BOOKING ----------------
 
