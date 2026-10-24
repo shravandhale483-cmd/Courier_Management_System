@@ -234,8 +234,6 @@ def add_page():
 
 def main():
     init_db()
-    st.markdown("""
-    <style>
      
     st.markdown("""
     <style>
