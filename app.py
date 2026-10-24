@@ -594,58 +594,272 @@ def admin_dashboard():
 def main():
     init_db()
 
-    # Readable light theme
-    st.markdown("""
-    <style>
-    .stApp {
-        background: #f4f7fb;
-        color: #17233c;
+st.markdown("""
+<style>
+/* ===== SwiftShip Modern UI ===== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --bg: #0b1120;
+    --panel: #111b2e;
+    --panel-hover: #17243a;
+    --border: #25334b;
+    --primary: #3b82f6;
+    --primary-light: #60a5fa;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --green: #34d399;
+    --orange: #fbbf24;
+    --red: #fb7185;
+}
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+.stApp {
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* Main content */
+.block-container {
+    max-width: 1500px;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: #0d1729;
+    border-right: 1px solid var(--border);
+}
+
+[data-testid="stSidebar"] > div:first-child {
+    padding-top: 1.5rem;
+}
+
+[data-testid="stSidebar"] * {
+    color: var(--text);
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1 {
+    color: var(--primary-light);
+    font-size: 1.55rem;
+    font-weight: 800;
+}
+
+/* Headings */
+h1, h2, h3 {
+    color: var(--text) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+}
+
+h1 {
+    font-size: 2rem !important;
+}
+
+h2 {
+    font-size: 1.5rem !important;
+}
+
+p, label, .stMarkdown {
+    color: #d5deea;
+}
+
+/* Metric cards */
+[data-testid="stMetric"] {
+    background: linear-gradient(145deg, #14213a, #101a2d);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    transition: transform .2s ease, border-color .2s ease;
+}
+
+[data-testid="stMetric"]:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary);
+}
+
+[data-testid="stMetricLabel"] {
+    color: var(--muted) !important;
+    font-size: .88rem !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: #f8fafc !important;
+    font-size: 1.9rem !important;
+    font-weight: 800 !important;
+}
+
+[data-testid="stMetricDelta"] {
+    font-size: .8rem;
+}
+
+/* Buttons */
+.stButton > button,
+.stFormSubmitButton > button {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: white !important;
+    border: 1px solid #3b82f6;
+    border-radius: 10px;
+    padding: .65rem 1.15rem;
+    font-weight: 600;
+    transition: all .2s ease;
+}
+
+.stButton > button:hover,
+.stFormSubmitButton > button:hover {
+    background: #1d4ed8;
+    border-color: #60a5fa;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(59,130,246,.22);
+}
+
+.stButton > button:focus,
+.stFormSubmitButton > button:focus {
+    box-shadow: 0 0 0 3px rgba(59,130,246,.25);
+}
+
+/* Inputs and dropdowns */
+.stTextInput input,
+.stNumberInput input,
+.stDateInput input,
+.stTimeInput input,
+.stTextArea textarea {
+    background: #0d1729 !important;
+    color: #f1f5f9 !important;
+    border: 1px solid #33445f !important;
+    border-radius: 10px !important;
+}
+
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stTextArea textarea:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 2px rgba(59,130,246,.15) !important;
+}
+
+[data-baseweb="select"] > div {
+    background: #0d1729 !important;
+    border-color: #33445f !important;
+    border-radius: 10px !important;
+    color: #f1f5f9 !important;
+}
+
+[data-baseweb="popover"],
+[data-baseweb="menu"] {
+    background: #14213a !important;
+    color: #f1f5f9 !important;
+}
+
+/* Forms and expanders */
+[data-testid="stForm"],
+[data-testid="stExpander"] {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px;
+}
+
+[data-testid="stExpander"] summary {
+    font-weight: 600;
+}
+
+/* Data tables */
+[data-testid="stDataFrame"],
+[data-testid="stTable"] {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+[data-testid="stDataFrame"] * {
+    font-size: .9rem;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.stTabs [data-baseweb="tab"] {
+    background: transparent;
+    border-radius: 8px 8px 0 0;
+    padding: 10px 16px;
+    color: var(--muted);
+}
+
+.stTabs [aria-selected="true"] {
+    color: var(--primary-light) !important;
+    border-bottom: 2px solid var(--primary) !important;
+}
+
+/* Alerts */
+[data-testid="stAlert"] {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+/* Progress bars */
+.stProgress > div > div > div {
+    background: var(--primary);
+    border-radius: 20px;
+}
+
+/* Dividers and captions */
+hr {
+    border-color: var(--border) !important;
+}
+
+[data-testid="stCaptionContainer"] {
+    color: var(--muted);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0b1120;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #33445f;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4b6385;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .block-container {
+        padding: 1rem;
     }
-    [data-testid="stMain"] h1,
-    [data-testid="stMain"] h2,
-    [data-testid="stMain"] h3,
-    [data-testid="stMain"] p,
-    [data-testid="stMain"] label {
-        color: #17233c;
+
+    h1 {
+        font-size: 1.6rem !important;
     }
-    [data-testid="stSidebar"] {
-        background: #17233c;
-    }
-    [data-testid="stSidebar"] * {
-        color: #ffffff;
-    }
+
     [data-testid="stMetric"] {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 12px;
+        padding: 14px;
     }
+
     [data-testid="stMetricValue"] {
-        color: #17233c;
+        font-size: 1.4rem !important;
     }
-    .stButton button[kind="primary"],
-    .stFormSubmitButton button[kind="primary"] {
-        background: #3659d9;
-        color: white;
-        border-radius: 8px;
-    }
-    
-    .stTextArea textarea {
-        background-color: #ffffff !important;
-        color: #222222 !important;
-        -webkit-text-fill-color: #222222 !important;
-        caret-color: #222222 !important;
-        border: 1px solid #cbd5e1 !important;
-    }
+}
+</style>
+""", unsafe_allow_html=True)
 
-    .stTextArea textarea::placeholder {
-        color: #64748b !important;
-        opacity: 1 !important;
-    }
-
-    </style>
-    """, unsafe_allow_html=True)
-
+  
     user = st.session_state.get("user")
 
     if not user:
