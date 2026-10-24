@@ -236,16 +236,84 @@ def main():
     init_db()
     st.markdown("""
     <style>
-      .stApp { background: #f5f7fb; }
-      [data-testid="stSidebar"] { background: #17233c; }
-      [data-testid="stSidebar"] * { color: #f5f7ff; }
-      .hero { text-align:center; padding: 3.2rem 0 1.5rem; }
-      .hero h1 { font-size:3rem; font-weight:800; letter-spacing:-1.5px; margin:.2rem 0; }
-      .hero p,.subhead { color:#718096; }
-      .eyebrow { color:#4965df; font-size:.75rem; font-weight:800; letter-spacing:1.8px; }
-      div[data-testid="stMetric"] { background:white; padding:1.1rem; border:1px solid #e6ebf3; border-radius:14px; }
-      div[data-testid="stVerticalBlockBorderWrapper"] { background:white; border-radius:14px; }
-      .stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"] { background:#3659d9; border-color:#3659d9; }
+     
+    st.markdown("""
+    <style>
+      /* Main page: dark text on light background */
+      .stApp,
+      [data-testid="stAppViewContainer"],
+      [data-testid="stMain"] {
+          background: #f5f7fb !important;
+          color: #182338 !important;
+      }
+
+      [data-testid="stMain"] h1,
+      [data-testid="stMain"] h2,
+      [data-testid="stMain"] h3,
+      [data-testid="stMain"] p,
+      [data-testid="stMain"] label,
+      [data-testid="stMain"] span,
+      [data-testid="stMain"] div {
+          color: inherit;
+      }
+
+      [data-testid="stSidebar"] {
+          background: #17233c !important;
+      }
+
+      [data-testid="stSidebar"] * {
+          color: #f5f7ff;
+      }
+
+      .hero {
+          text-align: center;
+          padding: 3.2rem 0 1.5rem;
+      }
+
+      .hero h1 {
+          color: #182338 !important;
+          font-size: 3rem;
+          font-weight: 800;
+      }
+
+      .hero p, .subhead {
+          color: #718096 !important;
+      }
+
+      .eyebrow {
+          color: #4965df !important;
+          font-size: .75rem;
+          font-weight: 800;
+          letter-spacing: 1.8px;
+      }
+
+      [data-testid="stMetric"] {
+          background: white;
+          color: #182338 !important;
+          padding: 1.1rem;
+          border: 1px solid #e6ebf3;
+          border-radius: 14px;
+      }
+
+      [data-testid="stMetric"] label,
+      [data-testid="stMetric"] [data-testid="stMetricValue"] {
+          color: #182338 !important;
+      }
+
+      [data-testid="stVerticalBlockBorderWrapper"] {
+          background: white;
+          border-radius: 14px;
+      }
+
+      .stButton button[kind="primary"],
+      .stFormSubmitButton button[kind="primary"] {
+          background: #3659d9;
+          border-color: #3659d9;
+          color: white !important;
+      }
+    </style>
+    """, unsafe_allow_html=True)
+
     </style>
     """, unsafe_allow_html=True)
 
