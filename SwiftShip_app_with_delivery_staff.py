@@ -887,6 +887,162 @@ html, body, [class*="css"] {
     padding-bottom: 3rem;
 }
 
+/* ===== SWIFTSHIP PREMIUM ANIMATION UPGRADE ===== */
+
+@keyframes swiftShipEntry {
+    from {
+        opacity: 0;
+        transform: translateY(22px);
+        filter: blur(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
+@keyframes swiftShipGlow {
+    0%, 100% {
+        opacity: .45;
+        transform: scale(1);
+    }
+    50% {
+        opacity: .9;
+        transform: scale(1.04);
+    }
+}
+
+@keyframes swiftShipGradient {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Ambient blue lighting */
+.stApp {
+    background:
+        radial-gradient(
+            ellipse at 15% 5%,
+            rgba(37, 99, 235, .18),
+            transparent 38%
+        ),
+        radial-gradient(
+            ellipse at 90% 45%,
+            rgba(14, 165, 233, .10),
+            transparent 32%
+        ),
+        #080e1b !important;
+    background-size: 160% 160%;
+    animation: swiftShipGradient 16s ease infinite;
+}
+
+/* Smooth entrance for page content */
+[data-testid="stMainBlockContainer"] {
+    animation: swiftShipEntry .65s cubic-bezier(.2,.7,.2,1) both;
+}
+
+/* Premium glass-style metric cards */
+[data-testid="stMetric"] {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+        145deg,
+        rgba(24, 43, 72, .96),
+        rgba(12, 24, 43, .98)
+    ) !important;
+    border: 1px solid rgba(96, 165, 250, .24) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, .18);
+    transition:
+        transform .3s ease,
+        border-color .3s ease,
+        box-shadow .3s ease !important;
+}
+
+[data-testid="stMetric"]:hover {
+    transform: translateY(-6px) scale(1.015);
+    border-color: rgba(96, 165, 250, .8) !important;
+    box-shadow:
+        0 16px 38px rgba(37, 99, 235, .18),
+        0 0 18px rgba(59, 130, 246, .12);
+}
+
+/* Animated premium buttons */
+.stButton > button,
+.stFormSubmitButton > button,
+[data-testid="stDownloadButton"] > button {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+        110deg,
+        #1d4ed8,
+        #3b82f6,
+        #0ea5e9,
+        #1d4ed8
+    ) !important;
+    background-size: 220% 100% !important;
+    border: 1px solid rgba(147, 197, 253, .55) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 5px 18px rgba(37, 99, 235, .14);
+    transition: all .25s ease !important;
+}
+
+.stButton > button:hover,
+.stFormSubmitButton > button:hover,
+[data-testid="stDownloadButton"] > button:hover {
+    background-position: 100% 50% !important;
+    transform: translateY(-2px);
+    box-shadow: 0 9px 26px rgba(37, 99, 235, .3);
+}
+
+/* Inputs glow when selected */
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stTextArea textarea:focus,
+.stDateInput input:focus {
+    border-color: #60a5fa !important;
+    box-shadow:
+        0 0 0 2px rgba(59, 130, 246, .16),
+        0 0 18px rgba(59, 130, 246, .12) !important;
+}
+
+/* Smooth tracking progress */
+.stProgress > div > div > div {
+    background: linear-gradient(
+        90deg,
+        #2563eb,
+        #38bdf8,
+        #93c5fd
+    ) !important;
+    background-size: 200% 100%;
+    animation: swiftShipGradient 4s ease infinite;
+    border-radius: 20px;
+}
+
+/* Elegant borders for booking forms */
+[data-testid="stForm"] {
+    border: 1px solid rgba(96, 165, 250, .22) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, .12);
+    transition: border-color .25s ease, box-shadow .25s ease;
+}
+
+[data-testid="stForm"]:hover {
+    border-color: rgba(96, 165, 250, .42) !important;
+}
+
+/* Accessible motion settings */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* ===== TYPOGRAPHY ===== */
 h1, h2, h3 {
     color: #f8fafc !important;
