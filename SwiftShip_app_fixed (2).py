@@ -1396,7 +1396,8 @@ input:focus-visible {
     if "swiftship_truck_intro_seen_v2" not in st.session_state:
         st.session_state["swiftship_truck_intro_seen_v2"] = True
 
-        st.markdown(textwrap.dedent("""
+       st.markdown(textwrap.dedent("""
+       <div class="ss-cinema">
         <style>
         .ss-cinema {
             position: fixed;
