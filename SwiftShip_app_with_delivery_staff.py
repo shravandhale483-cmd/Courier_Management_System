@@ -1986,9 +1986,9 @@ if "swiftship_intro_seen" not in st.session_state:
   
     user = st.session_state.get("user")
 
-       if not user:
-          authentication_page()
-          return
+    if not user:
+        authentication_page()
+        return
 
     with st.sidebar:
         st.title("📦 SwiftShip")
