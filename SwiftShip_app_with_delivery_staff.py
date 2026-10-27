@@ -1284,6 +1284,105 @@ input:focus-visible {
         animation: none !important;
     }
 }
+
+/* ===== SWIFTSHIP CINEMATIC STARTUP ANIMATION ===== */
+
+@keyframes introBackdrop {
+    0% { opacity: 1; visibility: visible; }
+    75% { opacity: 1; visibility: visible; }
+    100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes logoReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(25px) scale(.65);
+        filter: blur(14px);
+    }
+    60% {
+        opacity: 1;
+        transform: translateY(-3px) scale(1.04);
+        filter: blur(0);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes parcelLaunch {
+    0% { transform: translateX(-100px) rotate(-20deg); }
+    45% { transform: translateX(0) rotate(0); }
+    75% { transform: translateX(12px) rotate(8deg); }
+    100% { transform: translateX(0) rotate(0); }
+}
+
+@keyframes routeDraw {
+    from { transform: scaleX(0); opacity: .2; }
+    to { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes glowPulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(59,130,246,.15);
+    }
+    50% {
+        box-shadow: 0 0 65px rgba(59,130,246,.48);
+    }
+}
+
+@keyframes dashboardReveal {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Intro glow around the brand heading */
+.stApp h1 {
+    animation: dashboardReveal .75s ease-out both;
+}
+
+/* Animated blue lighting across the app */
+.stApp {
+    background:
+        radial-gradient(ellipse at 50% 0%,
+            rgba(37,99,235,.20), transparent 45%),
+        radial-gradient(ellipse at 100% 70%,
+            rgba(14,165,233,.09), transparent 35%),
+        #080e1b !important;
+}
+
+/* Startup reveal for the main application */
+[data-testid="stMainBlockContainer"] {
+    animation: dashboardReveal .85s cubic-bezier(.2,.7,.2,1) both;
+}
+
+/* Brand glow */
+[data-testid="stSidebar"] h1 {
+    animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* Premium interactive dashboard cards */
+[data-testid="stMetric"] {
+    animation: dashboardReveal .65s ease-out both;
+    transition: transform .28s ease,
+                box-shadow .28s ease,
+                border-color .28s ease !important;
+}
+
+[data-testid="stMetric"]:hover {
+    transform: translateY(-6px) scale(1.015);
+    border-color: #60a5fa !important;
+    box-shadow: 0 12px 35px rgba(37,99,235,.25);
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
