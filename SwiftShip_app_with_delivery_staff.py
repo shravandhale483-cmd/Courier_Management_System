@@ -1385,389 +1385,225 @@ input:focus-visible {
 </style>
 """, unsafe_allow_html=True)
 
+
+    # ===== SWIFTSHIP CINEMATIC STARTUP INTRO =====
+    if "swiftship_intro_seen" not in st.session_state:
+        st.session_state["swiftship_intro_seen"] = True
+
+        st.markdown("""
+        <style>
+        @keyframes ssIntroFade {
+            0%, 78% {
+                opacity: 1;
+                visibility: visible;
+            }
+            100% {
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+            }
+        }
+
+        @keyframes ssLogoReveal {
+            0% {
+                opacity: 0;
+                transform: translateY(28px) scale(.75);
+                filter: blur(12px);
+            }
+            60% {
+                opacity: 1;
+                transform: translateY(-5px) scale(1.05);
+                filter: blur(0);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes ssParcelTravel {
+            0%   { left: 0%; transform: translateY(0) rotate(-15deg); }
+            25%  { transform: translateY(-15px) rotate(5deg); }
+            50%  { transform: translateY(0) rotate(15deg); }
+            75%  { transform: translateY(-12px) rotate(-5deg); }
+            100% { left: calc(100% - 48px); transform: translateY(0) rotate(0); }
+        }
+
+        @keyframes ssRouteGlow {
+            from { transform: scaleX(0); opacity: .2; }
+            to   { transform: scaleX(1); opacity: 1; }
+        }
+
+        @keyframes ssRing {
+            0%   { transform: scale(.65); opacity: .8; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        @keyframes ssTextReveal {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .ss-intro-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background:
+                radial-gradient(ellipse at 50% 40%,
+                    rgba(37,99,235,.24), transparent 42%),
+                radial-gradient(ellipse at 15% 85%,
+                    rgba(14,165,233,.13), transparent 35%),
+                #050a14;
+            animation: ssIntroFade 4.8s ease forwards;
+            pointer-events: auto;
+        }
+
+        .ss-intro-content {
+            width: min(680px, 88vw);
+            text-align: center;
+            color: #f8fafc;
+        }
+
+        .ss-intro-icon {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 104px;
+            height: 104px;
+            margin-bottom: 26px;
+            border: 1px solid rgba(96,165,250,.7);
+            border-radius: 30px;
+            background: linear-gradient(145deg,#152d50,#0b1425);
+            box-shadow: 0 0 60px rgba(37,99,235,.25);
+            font-size: 54px;
+            animation: ssLogoReveal .85s cubic-bezier(.2,.7,.2,1) both;
+        }
+
+        .ss-intro-icon::after {
+            content: "";
+            position: absolute;
+            inset: -9px;
+            border: 1px solid rgba(96,165,250,.5);
+            border-radius: 36px;
+            animation: ssRing 2s ease-out .3s infinite;
+        }
+
+        .ss-intro-title {
+            margin: 0;
+            font-size: clamp(38px, 7vw, 68px);
+            font-weight: 850;
+            letter-spacing: -2.5px;
+            line-height: 1.1;
+            color: #f8fafc;
+            animation: ssLogoReveal .9s ease .12s both;
+        }
+
+        .ss-intro-title span {
+            color: #60a5fa;
+            text-shadow: 0 0 32px rgba(59,130,246,.55);
+        }
+
+        .ss-intro-subtitle {
+            margin-top: 16px;
+            color: #a9bed8;
+            font-size: clamp(12px, 2vw, 16px);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            animation: ssTextReveal .8s ease .45s both;
+        }
+
+        .ss-route {
+            position: relative;
+            width: min(430px, 80%);
+            height: 55px;
+            margin: 48px auto 24px;
+            border-bottom: 2px dashed rgba(96,165,250,.35);
+        }
+
+        .ss-route-line {
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            transform-origin: left;
+            background: linear-gradient(90deg,#2563eb,#38bdf8,#93c5fd);
+            box-shadow: 0 0 14px rgba(56,189,248,.7);
+            animation: ssRouteGlow 1.5s ease .5s both;
+        }
+
+        .ss-parcel {
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            font-size: 34px;
+            filter: drop-shadow(0 0 12px rgba(96,165,250,.75));
+            animation: ssParcelTravel 2s cubic-bezier(.4,0,.2,1) .8s both;
+        }
+
+        .ss-intro-footer {
+            color: #8da5c3;
+            font-size: 13px;
+            letter-spacing: 1px;
+            animation: ssTextReveal .8s ease .7s both;
+        }
+
+        .ss-intro-footer strong {
+            color: #93c5fd;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ss-intro-overlay,
+            .ss-intro-overlay * {
+                animation-duration: .01ms !important;
+                animation-iteration-count: 1 !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ss-intro-icon {
+                width: 82px;
+                height: 82px;
+                border-radius: 24px;
+                font-size: 42px;
+            }
+            .ss-intro-subtitle {
+                letter-spacing: 1.5px;
+            }
+        }
+        </style>
+
+        <div class="ss-intro-overlay">
+            <div class="ss-intro-content">
+                <div class="ss-intro-icon">📦</div>
+                <h1 class="ss-intro-title">
+                    Swift<span>Ship</span>
+                </h1>
+                <div class="ss-intro-subtitle">
+                    Every parcel. Every mile. On time.
+                </div>
+                <div class="ss-route">
+                    <div class="ss-route-line"></div>
+                    <div class="ss-parcel">📦</div>
+                </div>
+                <div class="ss-intro-footer">
+                    <strong>PREPARING YOUR JOURNEY</strong>
+                    <br><br>
+                    Smart logistics · Seamless tracking
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+ 
+
   
   
-# ==========================================
-# SWIFTSHIP — PREMIUM CINEMATIC INTRO
-# ==========================================  
-if "swiftship_intro_seen" not in st.session_state:
-    st.session_state["swiftship_intro_seen"] = True
-
-    st.markdown("""
-    <style>
-    .ss-cinema {
-        position: fixed;
-        inset: 0;
-        z-index: 999999;
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background:
-          radial-gradient(ellipse at 50% 48%,
-            rgba(18, 89, 180, .27), transparent 48%),
-          linear-gradient(135deg, #030817 0%, #07152e 52%, #020610 100%);
-        animation: ss-exit 5.4s ease 1 forwards;
-        pointer-events: none;
-    }
-
-    .ss-cinema::before {
-        content: "";
-        position: absolute;
-        inset: -50%;
-        background: repeating-linear-gradient(
-          115deg,
-          transparent 0px,
-          transparent 95px,
-          rgba(64, 160, 255, .055) 96px,
-          transparent 98px
-        );
-        animation: ss-sweep 8s linear infinite;
-    }
-
-    .ss-orb {
-        position: absolute;
-        width: 360px;
-        height: 360px;
-        border-radius: 50%;
-        background: #087cff;
-        filter: blur(130px);
-        opacity: .17;
-        animation: ss-orb-pulse 2.5s ease-in-out infinite alternate;
-    }
-
-    .ss-content {
-        position: relative;
-        width: min(850px, 94vw);
-        text-align: center;
-        color: #fff;
-        animation: ss-arrive 1s cubic-bezier(.2,.8,.2,1) both;
-    }
-
-    .ss-brand {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 13px;
-        margin-bottom: 8px;
-    }
-
-    .ss-logo {
-        width: 53px;
-        height: 53px;
-        display: grid;
-        place-items: center;
-        border: 1px solid rgba(111,190,255,.6);
-        border-radius: 17px;
-        background: linear-gradient(145deg,#1488ff,#0750bc);
-        box-shadow: 0 0 35px rgba(0,132,255,.42);
-        font-size: 27px;
-        animation: ss-logo-glow 2s ease-in-out infinite alternate;
-    }
-
-    .ss-wordmark {
-        font-size: clamp(28px, 5vw, 43px);
-        font-weight: 900;
-        letter-spacing: 2px;
-    }
-
-    .ss-wordmark span { color: #51b8ff; }
-
-    .ss-tagline {
-        color: #a9bfdc;
-        font-size: clamp(10px, 1.7vw, 13px);
-        letter-spacing: 4px;
-        text-transform: uppercase;
-        margin: 12px 0 0;
-        animation: ss-text-in .9s ease .3s both;
-    }
-
-    .ss-scene {
-        position: relative;
-        height: clamp(165px, 27vw, 225px);
-        margin: 18px auto 0;
-        overflow: hidden;
-    }
-
-    .ss-horizon {
-        position: absolute;
-        width: 80%;
-        height: 100px;
-        bottom: 30px;
-        left: 10%;
-        background: radial-gradient(ellipse,
-            rgba(0,125,255,.23), transparent 70%);
-    }
-
-    .ss-road {
-        position: absolute;
-        left: -10%;
-        right: -10%;
-        bottom: 24px;
-        height: 3px;
-        background: linear-gradient(90deg,
-          transparent, #087bff, #a1eaff, #087bff, transparent);
-        box-shadow: 0 0 12px #078aff, 0 0 35px #087bff;
-    }
-
-    .ss-road::after {
-        content: "";
-        position: absolute;
-        inset: 9px 0 auto;
-        height: 1px;
-        background: linear-gradient(90deg,
-          transparent, rgba(39,131,255,.6), transparent);
-    }
-
-    .ss-dash {
-        position: absolute;
-        left: -35%;
-        bottom: 7px;
-        width: 170%;
-        height: 2px;
-        background: repeating-linear-gradient(
-          90deg, transparent 0 34px,
-          rgba(108,195,255,.8) 35px 65px,
-          transparent 66px 100px
-        );
-        animation: ss-road-run .65s linear infinite;
-    }
-
-    .ss-truck {
-        position: absolute;
-        bottom: 31px;
-        left: -230px;
-        width: 220px;
-        height: 120px;
-        filter: drop-shadow(0 0 15px rgba(0,128,255,.4));
-        animation: ss-drive 3.1s cubic-bezier(.25,.65,.35,1) .45s both;
-    }
-
-    .ss-truck svg { width: 100%; height: 100%; overflow: visible; }
-
-    .ss-wheel {
-        transform-box: fill-box;
-        transform-origin: center;
-        animation: ss-wheel-spin .42s linear infinite;
-    }
-
-    .ss-headlight {
-        animation: ss-light 1s ease-in-out infinite alternate;
-    }
-
-    .ss-particle {
-        position: absolute;
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background: #83d9ff;
-        box-shadow: 0 0 10px #078aff;
-        animation: ss-particle-fly 1.7s linear infinite;
-    }
-
-    .ss-p1 { top: 26%; left: 18%; animation-delay: -.3s; }
-    .ss-p2 { top: 48%; left: 78%; animation-delay: -.9s; }
-    .ss-p3 { top: 20%; left: 65%; animation-delay: -1.2s; }
-    .ss-p4 { top: 66%; left: 30%; animation-delay: -.6s; }
-
-    .ss-status {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 9px;
-        color: #a7c9ef;
-        font-size: 12px;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        animation: ss-text-in 1s ease .8s both;
-    }
-
-    .ss-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: #42f5b0;
-        box-shadow: 0 0 12px #42f5b0;
-        animation: ss-dot-pulse 1s ease-in-out infinite;
-    }
-
-    .ss-progress {
-        width: min(260px, 65vw);
-        height: 3px;
-        margin: 18px auto 0;
-        border-radius: 10px;
-        overflow: hidden;
-        background: rgba(135,180,230,.15);
-    }
-
-    .ss-progress span {
-        display: block;
-        height: 100%;
-        width: 0;
-        background: linear-gradient(90deg,#087bff,#69e2ff);
-        box-shadow: 0 0 12px #159bff;
-        animation: ss-load 4.4s ease .15s forwards;
-    }
-
-    @keyframes ss-exit {
-        0%, 79% { opacity: 1; visibility: visible; }
-        100% { opacity: 0; visibility: hidden; }
-    }
-    @keyframes ss-arrive {
-        from { opacity: 0; transform: translateY(22px) scale(.97); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    @keyframes ss-text-in {
-        from { opacity: 0; letter-spacing: 7px; }
-        to { opacity: 1; letter-spacing: 2px; }
-    }
-    @keyframes ss-sweep {
-        from { transform: translateX(-4%) translateY(-2%); }
-        to { transform: translateX(4%) translateY(2%); }
-    }
-    @keyframes ss-orb-pulse {
-        from { transform: scale(.85); opacity: .12; }
-        to { transform: scale(1.15); opacity: .25; }
-    }
-    @keyframes ss-logo-glow {
-        from { box-shadow: 0 0 18px rgba(0,132,255,.3); }
-        to { box-shadow: 0 0 38px rgba(0,132,255,.75); }
-    }
-    @keyframes ss-drive {
-        0% { left: -230px; transform: scale(.83); }
-        65% { left: calc(50% - 110px); transform: scale(1.05); }
-        82% { left: calc(50% - 110px); transform: scale(1.05); }
-        100% { left: calc(100% + 20px); transform: scale(.96); }
-    }
-    @keyframes ss-wheel-spin { to { transform: rotate(360deg); } }
-    @keyframes ss-road-run { to { transform: translateX(100px); } }
-    @keyframes ss-light {
-        from { opacity: .65; }
-        to { opacity: 1; }
-    }
-    @keyframes ss-particle-fly {
-        0% { transform: translate(0,0) scale(.5); opacity: 0; }
-        30% { opacity: 1; }
-        100% { transform: translate(-65px,35px) scale(1.3); opacity: 0; }
-    }
-    @keyframes ss-load { to { width: 100%; } }
-    @keyframes ss-dot-pulse {
-        50% { opacity: .35; transform: scale(.75); }
-    }
-
-    @media (max-width: 600px) {
-        .ss-tagline { letter-spacing: 2px; }
-        .ss-scene { margin-top: 24px; }
-        .ss-truck { width: 185px; height: 105px; }
-        @keyframes ss-drive {
-            0% { left: -195px; transform: scale(.8); }
-            65%,82% { left: calc(50% - 92px); transform: scale(1); }
-            100% { left: calc(100% + 20px); transform: scale(.9); }
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .ss-cinema, .ss-cinema *, .ss-cinema::before {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-        }
-    }
-    </style>
-
-    <div class="ss-cinema">
-      <div class="ss-orb"></div>
-      <div class="ss-content">
-        <div class="ss-brand">
-          <div class="ss-logo">⚡</div>
-          <div class="ss-wordmark">SWIFT<span>SHIP</span></div>
-        </div>
-
-        <div class="ss-tagline">Delivering Beyond Expectations</div>
-
-        <div class="ss-scene">
-          <div class="ss-horizon"></div>
-          <div class="ss-particle ss-p1"></div>
-          <div class="ss-particle ss-p2"></div>
-          <div class="ss-particle ss-p3"></div>
-          <div class="ss-particle ss-p4"></div>
-
-          <div class="ss-truck">
-            <svg viewBox="0 0 240 130" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="ssBody" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stop-color="#42b7ff"/>
-                  <stop offset="100%" stop-color="#0750bb"/>
-                </linearGradient>
-                <linearGradient id="ssBox" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#f4f8ff"/>
-                  <stop offset="100%" stop-color="#b5d5f5"/>
-                </linearGradient>
-                <filter id="ssGlow">
-                  <feGaussianBlur stdDeviation="5"/>
-                </filter>
-              </defs>
-
-              <!-- Headlight beam -->
-              <path d="M204 67 L239 48 L239 92 L204 82Z"
-                    fill="#57dfff" opacity=".22" filter="url(#ssGlow)"/>
-
-              <!-- Cargo body -->
-              <rect x="13" y="20" width="137" height="77" rx="7"
-                    fill="url(#ssBox)" stroke="#80cfff" stroke-width="1.5"/>
-              <path d="M23 31 H139 V86 H23Z"
-                    fill="#d8eaff" stroke="#a2c9f0" stroke-width="1"/>
-
-              <!-- Parcel mark -->
-              <path d="M66 40 L84 30 L102 40 L84 51Z"
-                    fill="#1488ff"/>
-              <path d="M66 40 V61 L84 72 V51Z" fill="#0870da"/>
-              <path d="M84 51 L102 40 V61 L84 72Z" fill="#3faeff"/>
-              <path d="M84 31 V51" stroke="#dff7ff" stroke-width="2"/>
-
-              <!-- Cabin -->
-              <path d="M150 47 H185 L211 68 V96 H150Z"
-                    fill="url(#ssBody)" stroke="#71cbff" stroke-width="1.5"/>
-              <path d="M161 53 H181 L199 69 H161Z"
-                    fill="#b9eaff" stroke="#e4f7ff" stroke-width="1"/>
-              <path d="M166 57 H179 L191 67 H166Z"
-                    fill="#183f69"/>
-
-              <!-- Bumper and chassis -->
-              <path d="M9 96 H215 V105 H9Z" fill="#112f50"/>
-              <path d="M194 92 H216 V99 H194Z" fill="#8bdcff"/>
-              <rect x="207" y="77" width="7" height="12" rx="2"
-                    fill="#fff0a5" class="ss-headlight"/>
-
-              <!-- Wheels -->
-              <g class="ss-wheel">
-                <circle cx="48" cy="99" r="17" fill="#020712" stroke="#54708f" stroke-width="3"/>
-                <circle cx="48" cy="99" r="8" fill="#6c91b5"/>
-                <circle cx="48" cy="99" r="3" fill="#d5f1ff"/>
-                <path d="M48 84 V91 M48 107 V114 M33 99 H40 M56 99 H63"
-                      stroke="#d5f1ff" stroke-width="2"/>
-              </g>
-              <g class="ss-wheel">
-                <circle cx="181" cy="99" r="17" fill="#020712" stroke="#54708f" stroke-width="3"/>
-                <circle cx="181" cy="99" r="8" fill="#6c91b5"/>
-                <circle cx="181" cy="99" r="3" fill="#d5f1ff"/>
-                <path d="M181 84 V91 M181 107 V114 M166 99 H173 M189 99 H196"
-                      stroke="#d5f1ff" stroke-width="2"/>
-              </g>
-            </svg>
-          </div>
-
-          <div class="ss-road"><div class="ss-dash"></div></div>
-        </div>
-
-        <div class="ss-status">
-          <span class="ss-dot"></span>
-          YOUR DELIVERY JOURNEY STARTS HERE
-        </div>
-
-        <div class="ss-progress"><span></span></div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 
   
