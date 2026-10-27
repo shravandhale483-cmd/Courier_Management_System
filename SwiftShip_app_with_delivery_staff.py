@@ -1604,7 +1604,7 @@ input:focus-visible {
 # ==========================================
 # SWIFTSHIP — PREMIUM CINEMATIC INTRO
 # ==========================================
-if "swiftship_intro_seen" not in st.session_state:
+  if "swiftship_intro_seen" not in st.session_state:
     st.session_state["swiftship_intro_seen"] = True
 
     st.markdown("""
